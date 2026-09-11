@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Дисциплина</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#000000;
+    --fg:#ffffff;
+    --mid:#6a6a6a;
+    --line:#2a2a2a;
+    --boost:#ff8a3d;
+    --shield:#4dd0e1;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%; overflow:hidden;
+    background:var(--bg);
+    font-family:'Space Grotesk',sans-serif;
+    color:var(--fg);
+    -webkit-tap-highlight-color: transparent;
+    user-select:none;
+    overscroll-behavior:none;
+  }
+  #stage{
+    position:relative;
+    width:100%;
+    height:100vh;
+    height:100dvh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  #wrap{
+    position:relative;
+    width:min(92vw, 460px);
+    height:min(88vh, 780px);
+    height:min(88dvh, 780px);
+    overflow:hidden;
+    background:var(--bg);
+    border:1px solid var(--line);
+  }
+  canvas{
+    display:block;
+    width:100%;
+    height:100%;
+    touch-action:none;
+  }
+
+  .overlay{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    text-align:center;
+    padding:8% 10%;
+    background:rgba(0,0,0,0.94);
+  }
+  .hidden{ display:none; }
+
+  h1.title{
+    font-weight:700;
+    font-size:clamp(30px, 9vw, 46px);
+    line-height:1.05;
+    letter-spacing:-0.02em;
+    margin:0 0 10px 0;
+    color:var(--fg);
+  }
+  .subtitle{
+    font-size:14px;
+    color:var(--mid);
+    max-width:32ch;
+    margin:0 0 26px 0;
+    line-height:1.55;
+    font-weight:400;
+  }
+  .rules{
+    font-size:13px;
+    color:var(--mid);
+    margin:0 0 30px 0;
+    line-height:1.8;
+    font-weight:400;
+  }
+  .rules b{ color:var(--fg); font-weight:500; }
+
+  button.playBtn{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:500;
+    font-size:16px;
+    padding:14px 40px;
+    border-radius:2px;
+    border:1px solid var(--fg);
+    background:transparent;
+    color:var(--fg);
+    cursor:pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  button.playBtn:hover{
+    background:var(--fg);
+    color:#000;
+  }
+  button.playBtn:active{
+    opacity:0.7;
+  }
+
+  .scoreBig{
+    font-size:clamp(46px,13vw,68px);
+    font-weight:700;
+    color:var(--fg);
+    margin: 8px 0 4px 0;
+    letter-spacing:-0.02em;
+  }
+  .bestLine{
+    font-size:12px;
+    color:var(--mid);
+    margin: 0 0 26px 0;
+    letter-spacing:0.02em;
+  }
+  .quip{
+    font-size:13px;
+    color:var(--mid);
+    max-width:30ch;
+    margin: 0 0 28px 0;
+  }
+
+  #hud{
+    position:absolute;
+    top:0; left:0; right:0;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    padding:16px 18px;
+    font-size:13px;
+    letter-spacing:0.02em;
+    pointer-events:none;
+    z-index:5;
+    font-weight:500;
+  }
+  #hudScore{ color:var(--fg); }
+  #hudBest{ color:var(--mid); text-align:right; }
+  #hudStatus{
+    font-size:11px;
+    margin-top:4px;
+    font-weight:500;
+    letter-spacing:0.04em;
+    min-height:14px;
+    transition: opacity 0.15s ease;
+  }
+
+  #toast{
+    position:absolute;
+    left:50%;
+    top:14%;
+    transform:translate(-50%,-8px);
+    color:var(--mid);
+    padding:6px 0;
+    font-size:12px;
+    font-weight:400;
+    max-width:74%;
+    text-align:center;
+    opacity:0;
+    transition: opacity 0.3s ease;
+    pointer-events:none;
+    z-index:6;
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+  }
+  #toast.show{ opacity:1; }
+
+  footer.hint{
+    position:absolute;
+    bottom:12px;
+    left:0; right:0;
+    text-align:center;
+    font-size:10px;
+    letter-spacing:0.05em;
+    color:#3a3a3a;
+    z-index:5;
+    pointer-events:none;
+  }
+
+  #newRecord{
+    font-size:11px;
+    letter-spacing:0.1em;
+    color:var(--fg);
+    margin-bottom:6px;
+    border:1px solid var(--fg);
+    padding:3px 10px;
+    display:inline-block;
+  }
+
+  /* Mobile touch controls */
+  #touchControls{
+    position:absolute;
+    left:0; right:0; bottom:0;
+    display:flex;
+    justify-content:space-between;
+    padding:0 14px calc(14px + env(safe-area-inset-bottom, 0px)) 14px;
+    z-index:8;
+  }
+  .padBtn{
+    width:64px; height:64px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.18);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--fg);
+    touch-action:none;
+    transition: background 0.1s ease, transform 0.1s ease;
+  }
+  .padBtn svg{ width:22px; height:22px; opacity:0.85; }
+  .padBtn.pressed{
+    background:rgba(255,255,255,0.18);
+    transform:scale(0.92);
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="wrap">
+    <canvas id="game"></canvas>
+
+    <div id="hud">
+      <div>
+        <div id="hudScore">0</div>
+        <div id="hudStatus"></div>
+      </div>
+      <div id="hudBest">рекорд 0</div>
+    </div>
+    <div id="toast"></div>
+
+    <div id="touchControls">
+      <div class="padBtn" id="btnLeft" aria-label="влево">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </div>
+      <div class="padBtn" id="btnRight" aria-label="вправо">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </div>
+    </div>
+
+    <div class="overlay" id="startScreen">
+      <h1 class="title">ДИСЦИП-<br>ЛИНА</h1>
+      <p class="subtitle">Не получилось — не беда. Встал и жмёшь дальше. Дистанция сама себя не пройдёт.</p>
+      <p class="rules">
+        <b>Свайп</b> или стрелки/кнопки — смена полосы<br>
+        Оранжевый — <b>рывок</b>, голубой — <b>щит</b><br>
+        Чем дольше держишься — тем больше очков
+      </p>
+      <button class="playBtn" id="startBtn">Начать</button>
+    </div>
+
+    <div class="overlay hidden" id="overScreen">
+      <div id="newRecord" class="hidden">Новый рекорд</div>
+      <h1 class="title" style="font-size:clamp(22px,7vw,28px)">Сорвался(-ась)</h1>
+      <div class="scoreBig" id="finalScore">0</div>
+      <div class="bestLine" id="bestLineText">Рекорд: 0</div>
+      <p class="quip" id="finalQuip">Отговорки не считаются.</p>
+      <button class="playBtn" id="retryBtn">Ещё раз</button>
+    </div>
+
+    <footer class="hint">свайп / тап / стрелки — влево, вправо</footer>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('wrap');
+  const startScreen = document.getElementById('startScreen');
+  const overScreen = document.getElementById('overScreen');
+  const startBtn = document.getElementById('startBtn');
+  const retryBtn = document.getElementById('retryBtn');
+  const hudScore = document.getElementById('hudScore');
+  const hudBest = document.getElementById('hudBest');
+  const hudStatus = document.getElementById('hudStatus');
+  const finalScore = document.getElementById('finalScore');
+  const finalQuip = document.getElementById('finalQuip');
+  const bestLineText = document.getElementById('bestLineText');
+  const newRecordEl = document.getElementById('newRecord');
+  const toastEl = document.getElementById('toast');
+  const btnLeft = document.getElementById('btnLeft');
+  const btnRight = document.getElementById('btnRight');
+
+  const BEST_KEY = 'discipline-dash-best-score';
+  let best = 0;
+
+  async function loadBest(){
+    try{
+      const res = await window.storage.get(BEST_KEY, false);
+      if(res && res.value){
+        const v = parseInt(res.value, 10);
+        if(!isNaN(v)) best = v;
+      }
+    }catch(e){
+      best = 0; // рекорда пока нет
+    }
+    hudBest.textContent = 'рекорд ' + best;
+  }
+  async function saveBest(v){
+    try{
+      await window.storage.set(BEST_KEY, String(v), false);
+    }catch(e){
+      // не критично
+    }
+  }
+  loadBest();
+
+  let W, H, DPR;
+  function resize(){
+    const rect = wrap.getBoundingClientRect();
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = rect.width; H = rect.height;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const LANES = 3;
+  function laneX(i){ return (W/LANES) * (i + 0.5); }
+
+  const QUIPS = [
+    'Не получилось — жми дальше.',
+    'Отговорки не считаются.',
+    'Слабость временна, привычка — нет.',
+    'Встал, отряхнулся, погнал снова.',
+    'Дисциплина крепче настроения.',
+    'Ещё один шаг. Потом ещё один.',
+    'Не сегодня отступать.',
+    'Соберись. Ты знаешь как.'
+  ];
+  const OVER_QUIPS = [
+    'Отговорки не считаются.',
+    'Один срыв — не поражение.',
+    'Дисциплина — это то, что после этого.',
+    'Завтра будет легче. Наверное.',
+    'Отвлёкся? Бывает. Снова.',
+    'Слабость была временной.',
+    'Встань и повтори попытку.',
+    'Это просто разгон перед рекордом.'
+  ];
+
+  let state = 'idle'; // idle | playing | over
+  let player, obstacles, pickups, particles;
+  let speed, spawnTimer, pickupTimer, quipTimer, elapsed, score;
+  let boostTimer, shieldTimer;
+
+  function initGame(){
+    player = { lane:1, x: laneX(1), y: 0, targetLane:1, bob:0, hitFlash:0 };
+    obstacles = [];
+    pickups = [];
+    particles = [];
+    speed = 220;
+    spawnTimer = 0;
+    pickupTimer = 0;
+    quipTimer = 2.2;
+    elapsed = 0;
+    score = 0;
+    boostTimer = 0;
+    shieldTimer = 0;
+    player.y = H - 110;
+    hudStatus.textContent = '';
+  }
+
+  function startGame(){
+    initGame();
+    state = 'playing';
+    startScreen.classList.add('hidden');
+    overScreen.classList.add('hidden');
+    lastTime = performance.now();
+    requestAnimationFrame(loop);
+  }
+
+  async function endGame(){
+    state = 'over';
+    const finalRounded = Math.floor(score);
+    const isRecord = finalRounded > best;
+    if(isRecord){
+      best = finalRounded;
+      hudBest.textContent = 'рекорд ' + best;
+      await saveBest(best);
+    }
+    newRecordEl.classList.toggle('hidden', !isRecord);
+    finalScore.textContent = finalRounded;
+    bestLineText.textContent = 'Рекорд: ' + best;
+    finalQuip.textContent = OVER_QUIPS[Math.floor(Math.random()*OVER_QUIPS.length)];
+    overScreen.classList.remove('hidden');
+  }
+
+  function showToast(text){
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>toastEl.classList.remove('show'), 1600);
+  }
+
+  function moveLane(dir){
+    if(state !== 'playing') return;
+    player.targetLane = Math.max(0, Math.min(LANES-1, player.targetLane + dir));
+  }
+
+  // --- Keyboard ---
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') moveLane(-1);
+    if(e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') moveLane(1);
+    if(e.key === ' ' && state !== 'playing') startGame();
+  });
+
+  // --- On-screen buttons (big, thumb-friendly, with press feedback) ---
+  function bindPad(el, dir){
+    const press = (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      el.classList.add('pressed');
+      if(state === 'playing') moveLane(dir);
+      else if(state !== 'playing') startGame();
+    };
+    const release = (e)=>{ el.classList.remove('pressed'); };
+    el.addEventListener('pointerdown', press);
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointerleave', release);
+    el.addEventListener('pointercancel', release);
+  }
+  bindPad(btnLeft, -1);
+  bindPad(btnRight, 1);
+
+  // --- Swipe + tap on the play field itself ---
+  let touchStartX = 0, touchStartY = 0, touchStartT = 0, touchActive = false;
+  wrap.addEventListener('pointerdown', (e)=>{
+    if(e.target === btnLeft || e.target === btnRight || btnLeft.contains(e.target) || btnRight.contains(e.target)) return;
+    touchActive = true;
+    touchStartX = e.clientX;
+    touchStartY = e.clientY;
+    touchStartT = performance.now();
+  });
+  wrap.addEventListener('pointerup', (e)=>{
+    if(!touchActive) return;
+    touchActive = false;
+    if(e.target === btnLeft || e.target === btnRight || btnLeft.contains(e.target) || btnRight.contains(e.target)) return;
+    const dx = e.clientX - touchStartX;
+    const dy = e.clientY - touchStartY;
+    const dt = performance.now() - touchStartT;
+
+    if(state !== 'playing'){
+      startGame();
+      return;
+    }
+    const SWIPE_THRESHOLD = 28;
+    if(Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) && dt < 600){
+      moveLane(dx > 0 ? 1 : -1);
+    } else {
+      // treat as a simple tap on left/right half of the field
+      const rect = wrap.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      moveLane(x < W/2 ? -1 : 1);
+    }
+  });
+
+  startBtn.addEventListener('click', startGame);
+  retryBtn.addEventListener('click', startGame);
+
+  function spawnObstacle(){
+    const lane = Math.floor(Math.random()*LANES);
+    const kinds = ['square','triangle','diamond'];
+    const kind = kinds[Math.floor(Math.random()*kinds.length)];
+    obstacles.push({ lane, y:-40, kind, w:46, h:46 });
+  }
+  function spawnPickup(){
+    const lane = Math.floor(Math.random()*LANES);
+    const roll = Math.random();
+    let kind = 'coin';
+    if(roll > 0.94) kind = 'shield';
+    else if(roll > 0.84) kind = 'boost';
+    pickups.push({ lane, y:-30, r: kind==='coin' ? 6 : 10, spin:0, kind });
+  }
+
+  function rectsOverlap(ax,ay,aw,ah,bx,by,bw,bh){
+    return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+  }
+
+  let lastTime = 0;
+  function loop(now){
+    const dt = Math.min(0.033, (now - lastTime)/1000);
+    lastTime = now;
+    if(state === 'playing') update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function update(dt){
+    elapsed += dt;
+
+    if(boostTimer > 0) boostTimer -= dt;
+    if(shieldTimer > 0) shieldTimer -= dt;
+    const boostActive = boostTimer > 0;
+    const speedMult = boostActive ? 1.7 : 1;
+    const scoreMult = boostActive ? 3 : 1;
+
+    score += (dt * 10 + speed*dt*0.02) * scoreMult;
+
+    // Gentler ramp: speed still grows the longer you survive, but far
+    // less aggressively, and it eases toward a ceiling instead of
+    // spiraling forever.
+    const accel = 6 + Math.min(elapsed, 60) * 0.5;
+    speed += dt * accel;
+    hudScore.textContent = Math.floor(score);
+
+    if(boostActive){
+      hudStatus.textContent = 'РЫВОК ' + boostTimer.toFixed(1);
+      hudStatus.style.color = 'var(--boost)';
+    } else if(shieldTimer > 0){
+      hudStatus.textContent = 'ЩИТ ' + shieldTimer.toFixed(1);
+      hudStatus.style.color = 'var(--shield)';
+    } else {
+      hudStatus.textContent = '';
+    }
+
+    const tx = laneX(player.targetLane);
+    player.x += (tx - player.x) * Math.min(1, dt*14);
+    player.lane = player.targetLane;
+    player.bob += dt * (boostActive ? 18 : 10);
+    if(player.hitFlash > 0) player.hitFlash -= dt;
+
+    const effSpeed = speed * speedMult;
+
+    spawnTimer -= dt;
+    const spawnInterval = Math.max(0.3, 1.05 - elapsed*0.012);
+    if(spawnTimer <= 0){
+      spawnObstacle();
+      spawnTimer = spawnInterval;
+    }
+    pickupTimer -= dt;
+    if(pickupTimer <= 0){
+      spawnPickup();
+      pickupTimer = 1.2 + Math.random()*1.0;
+    }
+    quipTimer -= dt;
+    if(quipTimer <= 0){
+      showToast(QUIPS[Math.floor(Math.random()*QUIPS.length)]);
+      quipTimer = 7 + Math.random()*4;
+    }
+
+    const playerBox = { x: player.x-20, y: player.y-8, w:40, h:56 };
+
+    for(let i=obstacles.length-1;i>=0;i--){
+      const o = obstacles[i];
+      o.y += effSpeed*dt;
+      const ox = laneX(o.lane) - o.w/2;
+      if(rectsOverlap(playerBox.x,playerBox.y,playerBox.w,playerBox.h, ox,o.y,o.w,o.h)){
+        obstacles.splice(i,1);
+        if(shieldTimer > 0){
+          shieldTimer = 0;
+          hudStatus.textContent = '';
+          showToast('Щит спас. Погнали.');
+          for(let p=0;p<12;p++){
+            particles.push({x:laneX(o.lane), y:o.y+20, vx:(Math.random()-0.5)*220, vy:(Math.random()-0.9)*220, life:0.5});
+          }
+          continue;
+        }
+        player.hitFlash = 0.4;
+        for(let p=0;p<16;p++){
+          particles.push({x:laneX(o.lane), y:o.y+20, vx:(Math.random()-0.5)*240, vy:(Math.random()-0.9)*240, life:0.55});
+        }
+        endGame();
+        continue;
+      }
+      if(o.y > H+60) obstacles.splice(i,1);
+    }
+
+    for(let i=pickups.length-1;i>=0;i--){
+      const p = pickups[i];
+      p.y += effSpeed*dt;
+      p.spin += dt*6;
+      const px = laneX(p.lane);
+      const dx = px - player.x, dy = p.y - player.y;
+      if(Math.abs(dx) < 26 && Math.abs(dy) < 36){
+        pickups.splice(i,1);
+        if(p.kind === 'boost'){
+          boostTimer = 5;
+          showToast('Рывок! 5 секунд на полную.');
+        } else if(p.kind === 'shield'){
+          shieldTimer = 8;
+          showToast('Щит на 8 секунд.');
+        } else {
+          score += 20;
+        }
+        const col = p.kind==='boost' ? 6 : p.kind==='shield' ? 6 : 6;
+        for(let k=0;k<col;k++){
+          particles.push({x:px, y:p.y, vx:(Math.random()-0.5)*140, vy:(Math.random()-0.9)*140, life:0.4});
+        }
+        continue;
+      }
+      if(p.y > H+40) pickups.splice(i,1);
+    }
+
+    for(let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 300*dt;
+      p.life -= dt;
+      if(p.life <= 0) particles.splice(i,1);
+    }
+  }
+
+  function drawFloor(){
+    ctx.save();
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    for(let i=1;i<LANES;i++){
+      const x = (W/LANES)*i;
+      ctx.setLineDash([6,10]);
+      ctx.beginPath();
+      ctx.moveTo(x,0); ctx.lineTo(x,H);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  let now_ = 0;
+  function drawPlayer(){
+    const bobY = Math.sin(player.bob)*3;
+    const x = player.x, y = player.y + bobY;
+    ctx.save();
+    if(player.hitFlash > 0){
+      ctx.globalAlpha = 0.4 + Math.sin(now_*50)*0.4;
+    }
+    // shield ring
+    if(shieldTimer > 0){
+      ctx.strokeStyle = 'rgba(77,208,225,0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y+4, 30, 0, Math.PI*2);
+      ctx.stroke();
+    }
+    // shadow
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.beginPath();
+    ctx.ellipse(x, player.y+58, 18, 5, 0,0,Math.PI*2);
+    ctx.fill();
+    // body: simple upward triangle-runner
+    ctx.fillStyle = boostTimer > 0 ? '#ff8a3d' : '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(x, y-22);
+    ctx.lineTo(x-16, y+34);
+    ctx.lineTo(x+16, y+34);
+    ctx.closePath();
+    ctx.fill();
+    // head
+    ctx.beginPath();
+    ctx.arc(x, y-28, 8, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // boost trail
+    if(boostTimer > 0){
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = '#ff8a3d';
+      ctx.beginPath();
+      ctx.ellipse(x, y+50, 10, 22, 0,0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawObstacle(o){
+    const x = laneX(o.lane);
+    ctx.save();
+    ctx.translate(x, o.y+o.h/2);
+    ctx.strokeStyle = '#ffffff';
+    ctx.fillStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    if(o.kind === 'square'){
+      ctx.strokeRect(-16,-16,32,32);
+    } else if(o.kind === 'triangle'){
+      ctx.beginPath();
+      ctx.moveTo(0,-18);
+      ctx.lineTo(18,16);
+      ctx.lineTo(-18,16);
+      ctx.closePath();
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(0,-20);
+      ctx.lineTo(18,0);
+      ctx.lineTo(0,20);
+      ctx.lineTo(-18,0);
+      ctx.closePath();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawPickup(p){
+    const x = laneX(p.lane);
+    ctx.save();
+    ctx.translate(x, p.y);
+    if(p.kind === 'coin'){
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0,0,p.r,0,Math.PI*2);
+      ctx.fill();
+    } else if(p.kind === 'boost'){
+      ctx.rotate(p.spin);
+      ctx.fillStyle = '#ff8a3d';
+      const spikes = 4, outer = p.r, inner = p.r*0.42;
+      ctx.beginPath();
+      for(let i=0;i<spikes*2;i++){
+        const r = i%2===0 ? outer : inner;
+        const a = (Math.PI/spikes)*i;
+        ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+      }
+      ctx.closePath();
+      ctx.fill();
+    } else if(p.kind === 'shield'){
+      ctx.strokeStyle = '#4dd0e1';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.arc(0,0,p.r,0,Math.PI*2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0,0,p.r*0.45,0,Math.PI*2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function draw(){
+    now_ += 0.016;
+    drawFloor();
+    pickups.forEach(drawPickup);
+    obstacles.forEach(drawObstacle);
+    if(state !== 'idle') drawPlayer();
+    particles.forEach(p=>{
+      ctx.save();
+      ctx.globalAlpha = Math.max(0,p.life/0.55);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,3,0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  initGame();
+  draw();
+})();
+</script>
+</body>
+</html>
